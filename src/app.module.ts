@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module'
 import { AdminModule } from './admin/admin.module'
 import { ProvidersModule } from './providers/providers.module'
 import { ExamsModule } from './exams/exams.module'
+import { QuestionsModule } from './questions/questions.module'
 
 @Module({
 	imports: [
@@ -20,6 +21,7 @@ import { ExamsModule } from './exams/exams.module'
 		AdminModule,
 		ProvidersModule,
 		ExamsModule,
+		QuestionsModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
