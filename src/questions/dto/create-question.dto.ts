@@ -80,10 +80,11 @@ export class CreateQuestionDto {
 	@IsString()
 	referenceUrl?: string
 
+	@IsOptional()
 	@IsArray()
 	@ValidateNested({ each: true })
 	@Type(() => QuestionOptionDto)
-	options!: QuestionOptionDto[]
+	options?: QuestionOptionDto[]
 
 	@IsOptional()
 	@IsArray()

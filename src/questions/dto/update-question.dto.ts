@@ -20,6 +20,24 @@ class QuestionOptionUpdateDto {
 	optionOrder?: number
 }
 
+class QuestionGroupUpdateDto {
+	@IsString()
+	@MinLength(1)
+	label!: string
+
+	@IsEnum(['single', 'multi'] as unknown as GroupMode[])
+	mode!: GroupMode
+
+	@IsOptional()
+	@IsInt()
+	groupOrder?: number
+
+	@IsArray()
+	@ValidateNested({ each: true })
+	@Type(() => QuestionOptionUpdateDto)
+	options!: QuestionOptionUpdateDto[]
+}
+
 export class UpdateQuestionDto {
 	@IsOptional()
 	@IsInt()
@@ -81,13 +99,8 @@ export class UpdateQuestionDto {
 	@IsOptional()
 	@IsArray()
 	@ValidateNested({ each: true })
-	@Type(() => QuestionOptionUpdateDto as any)
-	groups?: Array<{
-		label: string
-		mode: GroupMode
-		groupOrder?: number
-		options: QuestionOptionUpdateDto[]
-	}>
+	@Type(() => QuestionGroupUpdateDto)
+	groups?: QuestionGroupUpdateDto[]
 }
 
 

@@ -69,7 +69,7 @@ export class QuestionsService {
 					await this.em.persistAndFlush(o)
 				}
 			}
-		} else {
+		} else if (dto.options && dto.options.length > 0) {
 			for (const [idx, opt] of dto.options.entries()) {
 				const o = this.em.create(QuestionOption, {
 					questionId: q.id,
