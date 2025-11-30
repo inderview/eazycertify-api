@@ -21,4 +21,10 @@ export class PurchasesController {
     const hasAccess = await this.purchasesService.checkAccess(userId, Number(examId))
     return { hasAccess }
   }
+
+  @Get('my-purchases')
+  async getMyPurchases(@Query('userId') userId: string) {
+    if (!userId) return []
+    return this.purchasesService.getUserPurchases(userId)
+  }
 }

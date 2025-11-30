@@ -81,6 +81,51 @@ export class StripeService {
 		}
 	}
 
+	async getSessionDetails(sessionId: string) {
+		try {
+			const session = await this.stripe.checkout.sessions.retrieve(sessionId)
+			
+			if (!session.metadata) {
+				throw new Error('Session metadata not found')
+			}
+
+			const metadata = session.metadata
+			const durationLabels: Record<string, string> = {
+				'1month': '1 Month',
+				'3months': '3 Months',
+				'1year': '1 Year'
+			}
+
+			// Calculate expiration date
+			const now = new Date()
+			const expiresAt = new Date(now)
+			
+			if (metadata.duration === '1month') {
+				expiresAt.setMonth(expiresAt.getMonth() + 1)
+			} else if (metadata.duration === '3months') {
+				expiresAt.setMonth(expiresAt.getMonth() + 3)
+			} else if (metadata.duration === '1year') {
+				expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+			}
+
+			return {
+				examCode: metadata.examCode,
+				examTitle: session.line_items?.data[0]?.description || 'Exam Access',
+				duration: metadata.duration,
+				durationLabel: durationLabels[metadata.duration] || metadata.duration,
+				withAI: metadata.withAI === 'true',
+				amount: session.amount_total ? session.amount_total / 100 : 0,
+				currency: session.currency || 'usd',
+				expiresAt: expiresAt.toISOString(),
+				customerEmail: session.customer_email,
+				paymentStatus: session.payment_status,
+			}
+		} catch (error) {
+			console.error('Error fetching session details:', error)
+			throw new Error('Failed to retrieve session details')
+		}
+	}
+
 	async handleWebhook(signature: string, payload: Buffer): Promise<void> {
 		const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 		if (!webhookSecret) {

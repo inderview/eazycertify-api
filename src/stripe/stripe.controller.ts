@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, Req } from '@nestjs/common'
+import { Controller, Post, Body, Headers, Req, Get, Param } from '@nestjs/common'
 import type { RawBodyRequest } from '@nestjs/common'
 import type { Request } from 'express'
 import { StripeService } from './stripe.service'
@@ -11,6 +11,11 @@ export class StripeController {
 	@Post('create-checkout-session')
 	async createCheckoutSession(@Body() dto: CreateCheckoutSessionDto) {
 		return this.stripeService.createCheckoutSession(dto)
+	}
+
+	@Get('session/:sessionId')
+	async getSession(@Param('sessionId') sessionId: string) {
+		return this.stripeService.getSessionDetails(sessionId)
 	}
 
 	@Post('webhook')

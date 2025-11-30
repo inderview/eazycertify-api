@@ -16,4 +16,23 @@ export class PurchasesService {
     
     return !!purchase
   }
+
+  async getUserPurchases(userId: string) {
+    const now = new Date()
+    const purchases = await this.em.find(Purchase, {
+      userId,
+      expiresAt: { $gt: now }
+    }, { populate: ['exam'] })
+    
+    return purchases.map(p => ({
+      id: p.id,
+      examId: p.exam.id,
+      examCode: p.exam.code,
+      examTitle: p.exam.title,
+      expiresAt: p.expiresAt,
+      createdAt: p.createdAt,
+      amount: p.amount,
+      status: p.expiresAt > new Date() ? 'Active' : 'Inactive'
+    }))
+  }
 }
