@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, Query } from '@nestjs/common'
 import { ExamsService } from './exams.service'
 import { EntityManager } from '@mikro-orm/postgresql'
 
@@ -9,10 +9,29 @@ export class PublicExamsController {
 		private readonly em: EntityManager,
 	) {}
 
-	@Get()
-	async findAll () {
-		// Get exams with provider information joined
+	@Get('providers')
+	async getProviders () {
 		const result = await this.em.execute(`
+			SELECT 
+				p.id, 
+				p.name, 
+				p.logo_url as "logoUrl", 
+				COUNT(e.id)::int as "examCount"
+			FROM provider p
+			LEFT JOIN exam e ON p.id = e.provider_id AND e.status = 'active'
+			GROUP BY p.id
+			ORDER BY p.sort_order ASC, p.name ASC
+		`)
+		return result
+	}
+
+	@Get()
+	async findAll (
+		@Query('providerId') providerId?: string,
+		@Query('search') search?: string,
+		@Query('sort') sort?: string
+	) {
+		let query = `
 			SELECT 
 				e.id,
 				e.code,
@@ -35,8 +54,32 @@ export class PublicExamsController {
 			FROM exam e
 			INNER JOIN provider p ON e.provider_id = p.id
 			WHERE e.status = 'active'
-			ORDER BY e.sort_order ASC, e.id ASC
-		`)
+		`
+		
+		const params: any[] = []
+
+		if (providerId) {
+			query += ` AND p.id = ?`
+			params.push(Number(providerId))
+		}
+
+		if (search) {
+			query += ` AND (LOWER(e.code) LIKE ? OR LOWER(e.title) LIKE ?)`
+			params.push(`%${search.toLowerCase()}%`)
+			params.push(`%${search.toLowerCase()}%`)
+		}
+
+		// Sorting
+		if (sort === 'recent') {
+			query += ` ORDER BY e.updated_at DESC`
+		} else if (sort === 'popular') {
+			// Assuming popular means more questions or just random for now as we don't have view counts
+			query += ` ORDER BY e.total_questions_in_bank DESC` 
+		} else {
+			query += ` ORDER BY e.sort_order ASC, e.id ASC`
+		}
+
+		const result = await this.em.execute(query, params)
 		
 		return result
 	}
