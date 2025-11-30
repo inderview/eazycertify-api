@@ -37,6 +37,15 @@ export class Exam {
 	@Property({ nullable: true })
 	price?: number
 
+	@Property({ default: false })
+	purchasable: boolean = false
+
+	@Property({ nullable: true })
+	sortOrder?: number
+
+	@Property({ nullable: true })
+	imageUrl?: string
+
 	@Property({ type: 'timestamptz', onCreate: () => new Date() })
 	createdAt: Date = new Date()
 

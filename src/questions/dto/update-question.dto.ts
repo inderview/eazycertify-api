@@ -22,7 +22,6 @@ class QuestionOptionUpdateDto {
 
 class QuestionGroupUpdateDto {
 	@IsString()
-	@MinLength(1)
 	label!: string
 
 	@IsEnum(['single', 'multi'] as unknown as GroupMode[])
@@ -101,6 +100,10 @@ export class UpdateQuestionDto {
 	@ValidateNested({ each: true })
 	@Type(() => QuestionGroupUpdateDto)
 	groups?: QuestionGroupUpdateDto[]
+
+	@IsOptional()
+	@IsInt()
+	sortOrder?: number
 }
 
 

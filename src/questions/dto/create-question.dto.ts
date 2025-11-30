@@ -18,7 +18,6 @@ class QuestionOptionDto {
 
 class QuestionGroupDto {
 	@IsString()
-	@MinLength(1)
 	label!: string
 
 	@IsEnum(['single', 'multi'] as unknown as GroupMode[])
@@ -91,6 +90,10 @@ export class CreateQuestionDto {
 	@ValidateNested({ each: true })
 	@Type(() => QuestionGroupDto)
 	groups?: QuestionGroupDto[]
+
+	@IsOptional()
+	@IsInt()
+	sortOrder?: number
 }
 
 

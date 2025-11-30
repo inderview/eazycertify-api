@@ -9,6 +9,8 @@ import { AdminModule } from './admin/admin.module'
 import { ProvidersModule } from './providers/providers.module'
 import { ExamsModule } from './exams/exams.module'
 import { QuestionsModule } from './questions/questions.module'
+import { StripeModule } from './stripe/stripe.module'
+import { PurchasesModule } from './purchases/purchases.module'
 
 @Module({
 	imports: [
@@ -22,6 +24,8 @@ import { QuestionsModule } from './questions/questions.module'
 		ProvidersModule,
 		ExamsModule,
 		QuestionsModule,
+		StripeModule,
+		PurchasesModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],

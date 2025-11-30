@@ -37,6 +37,9 @@ export class Question {
 	orderIndex?: number
 
 	@Property({ nullable: true })
+	sortOrder?: number
+
+	@Property({ nullable: true })
 	blockId?: number // FK -> question_block.id
 
 	@Property({ nullable: true })

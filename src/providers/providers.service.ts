@@ -9,7 +9,11 @@ export class ProvidersService {
 	constructor (private readonly em: EntityManager) {}
 
 	findAll (): Promise<Provider[]> {
-		return this.em.find(Provider, {}, { orderBy: { name: 'asc' } })
+		return this.em.find(Provider, {}, { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] })
+	}
+
+	findActive (): Promise<Provider[]> {
+		return this.em.find(Provider, { status: 'active' }, { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] })
 	}
 
 	async create (dto: CreateProviderDto): Promise<Provider> {

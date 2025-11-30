@@ -41,6 +41,17 @@ export class CreateExamDto {
 	@IsNumber()
 	@IsPositive()
 	price?: number
+
+	@IsOptional()
+	purchasable?: boolean
+
+	@IsOptional()
+	@IsInt()
+	sortOrder?: number
+
+	@IsOptional()
+	@IsString()
+	imageUrl?: string
 }
 
 

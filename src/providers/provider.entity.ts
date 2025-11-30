@@ -17,6 +17,9 @@ export class Provider {
 	@Property()
 	status!: ProviderStatus
 
+	@Property({ nullable: true })
+	sortOrder?: number
+
 	@Property({ type: 'timestamptz', onCreate: () => new Date() })
 	createdAt: Date = new Date()
 

@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MinLength, IsUrl } from 'class-validator'
+import { IsEnum, IsInt, IsOptional, IsString, MinLength, IsUrl } from 'class-validator'
 import type { ProviderStatus } from '../provider.entity'
 
 export class CreateProviderDto {
@@ -12,6 +12,8 @@ export class CreateProviderDto {
 
 	@IsEnum(['active', 'inactive'] as unknown as ProviderStatus[])
 	status!: ProviderStatus
+
+	@IsOptional()
+	@IsInt()
+	sortOrder?: number
 }
-
-

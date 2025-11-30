@@ -24,7 +24,7 @@ export class QuestionsService {
 		if (filters.status) where.status = filters.status
 		if (filters.flagged !== undefined) where.flagged = filters.flagged === 'true'
 		if (filters.topic) where.topic = filters.topic
-		return this.em.find(Question, where, { orderBy: { id: 'desc' } })
+		return this.em.find(Question, where, { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] })
 	}
 
 	findOptions (questionId: number): Promise<QuestionOption[]> {
@@ -48,7 +48,7 @@ export class QuestionsService {
 			createdAt: new Date(),
 		})
 		await this.em.persistAndFlush(q)
-		// HOTSPOT: groups, otherwise simple options
+		// HOTSPOT/DRAGDROP: groups
 		if (dto.groups && dto.groups.length > 0) {
 			for (const [gidx, g] of dto.groups.entries()) {
 				const group = this.em.create(QuestionGroup, {
@@ -69,7 +69,10 @@ export class QuestionsService {
 					await this.em.persistAndFlush(o)
 				}
 			}
-		} else if (dto.options && dto.options.length > 0) {
+		}
+		
+		// Global options (Distractors or Standard Options)
+		if (dto.options && dto.options.length > 0) {
 			for (const [idx, opt] of dto.options.entries()) {
 				const o = this.em.create(QuestionOption, {
 					questionId: q.id,
@@ -101,10 +104,12 @@ export class QuestionsService {
 			referenceUrl: dto.referenceUrl ?? q.referenceUrl,
 		})
 		await this.em.flush()
+		
 		if (dto.groups) {
-			// Replace groups and options
+			// Replace groups and their options
 			const groups = await this.em.find(QuestionGroup, { questionId: id })
 			for (const g of groups) await this.em.remove(g).flush()
+			
 			for (const [gidx, g] of dto.groups.entries()) {
 				const group = this.em.create(QuestionGroup, {
 					questionId: id,
@@ -124,10 +129,13 @@ export class QuestionsService {
 					await this.em.persistAndFlush(o)
 				}
 			}
-		} else if (dto.options) {
-			// Replace options for simplicity
-			const existing = await this.em.find(QuestionOption, { questionId: id })
+		}
+		
+		if (dto.options) {
+			// Replace GLOBAL options only (where groupId is null)
+			const existing = await this.em.find(QuestionOption, { questionId: id, groupId: null })
 			for (const e of existing) await this.em.remove(e).flush()
+			
 			for (const [idx, opt] of dto.options.entries()) {
 				const o = this.em.create(QuestionOption, {
 					questionId: id,
