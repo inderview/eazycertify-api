@@ -9,6 +9,9 @@ export class Purchase {
   @Property()
   userId!: string
 
+  @Property({ nullable: true })
+  userEmail?: string
+
   @ManyToOne(() => Exam)
   exam!: Exam
 
