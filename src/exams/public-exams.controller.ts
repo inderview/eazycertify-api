@@ -40,7 +40,7 @@ export class PublicExamsController {
 				e.status,
 				e.time_limit_minutes as "timeLimitMinutes",
 				e.passing_score_percent as "passingScorePercent",
-				e.total_questions_in_bank as "totalQuestionsInBank",
+				(SELECT COUNT(*)::int FROM question q WHERE q.exam_id = e.id AND q.status = 'published') as "totalQuestionsInBank",
 				e.questions_per_mock_test as "questionsPerMockTest",
 				e.price,
 				e.purchasable,

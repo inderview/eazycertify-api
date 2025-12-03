@@ -5,6 +5,7 @@ export interface EmailOptions {
   subject: string
   text?: string
   html?: string
+  replyTo?: string
 }
 
 @Injectable()
@@ -27,6 +28,7 @@ export class EmailService {
     console.log('[Email] Sending email:', {
       from: this.fromEmail,
       to: options.to,
+      replyTo: options.replyTo,
       subject: options.subject,
       text: options.text,
       html: options.html,

@@ -11,6 +11,7 @@ import { ExamsModule } from './exams/exams.module'
 import { QuestionsModule } from './questions/questions.module'
 import { StripeModule } from './stripe/stripe.module'
 import { PurchasesModule } from './purchases/purchases.module'
+import { ContactModule } from './contact/contact.module'
 
 @Module({
 	imports: [
@@ -26,6 +27,7 @@ import { PurchasesModule } from './purchases/purchases.module'
 		QuestionsModule,
 		StripeModule,
 		PurchasesModule,
+		ContactModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
