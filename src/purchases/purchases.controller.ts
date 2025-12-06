@@ -38,10 +38,25 @@ export class PurchasesController {
     }
   }
 
+  @Get('debug-all')
+  async debugAll() {
+    return this.purchasesService.getAllPurchasesDebug()
+  }
+
   @Get('my-purchases')
-  async getMyPurchases(@Query('userId') userId: string) {
-    if (!userId) return []
-    return this.purchasesService.getUserPurchases(userId)
+  async getMyPurchases(
+    @Query('userId') userId: string,
+    @Query('email') email?: string
+  ) {
+    console.log('getMyPurchases called with userId:', userId, 'email:', email)
+    if (!userId && !email) return []
+    
+    // If userId is missing but we have email, we can still try to fetch
+    const effectiveUserId = userId || ''
+    
+    const purchases = await this.purchasesService.getUserPurchases(effectiveUserId, email)
+    console.log('Found purchases:', purchases)
+    return purchases
   }
 
   // Admin only endpoint - Fetch all locked accounts with pagination and filters

@@ -68,15 +68,33 @@ export class PurchasesService {
 
     // Story 3: Check if already locked
     if (deviceRecord.isLocked) {
-      throw new ForbiddenException('Access locked. Please contact support.')
+      // Check if lock has expired (48 hours)
+      if (deviceRecord.lockedAt) {
+        const lockExpiry = new Date(deviceRecord.lockedAt.getTime() + 48 * 60 * 60 * 1000); // 48 hours
+        if (new Date() > lockExpiry) {
+          // Auto-unlock after 48 hours
+          deviceRecord.isLocked = false;
+          deviceRecord.lockReason = undefined;
+          deviceRecord.lockedAt = undefined;
+          await this.purchaseDeviceRepository.getEntityManager().flush();
+          
+          // Create audit log for auto-unlock
+          await this.createAuditLog(purchase, 'auto_unlocked', undefined, '48-hour lock period expired');
+        } else {
+          throw new ForbiddenException('Access locked. Please contact support.');
+        }
+      } else {
+        throw new ForbiddenException('Access locked. Please contact support.');
+      }
     }
 
     // Story 2: Compare Device
     if (deviceRecord.deviceFingerprint !== deviceFingerprint) {
       // Scenario B: Different machine -> Auto-lock
-      deviceRecord.isLocked = true
-      deviceRecord.lockReason = `Attempted access from different device: ${deviceFingerprint}`
-      await this.purchaseDeviceRepository.getEntityManager().flush()
+      deviceRecord.isLocked = true;
+      deviceRecord.lockReason = `Attempted access from different device: ${deviceFingerprint}`;
+      deviceRecord.lockedAt = new Date(); // Set lock timestamp
+      await this.purchaseDeviceRepository.getEntityManager().flush();
       
       // Create audit log for auto-lock
       await this.createAuditLog(purchase, 'locked', undefined, deviceRecord.lockReason)
@@ -87,11 +105,24 @@ export class PurchasesService {
     // Scenario A: Same machine -> Update last access
     deviceRecord.lastAccessedAt = new Date()
     await this.purchaseDeviceRepository.getEntityManager().flush()
+    await this.purchaseDeviceRepository.getEntityManager().flush()
   }
 
-  async getUserPurchases(userId: string) {
+  async getAllPurchasesDebug() {
+    return this.purchaseRepository.findAll({ populate: ['exam'] })
+  }
+
+  async getUserPurchases(userId: string, email?: string) {
+    const where: FilterQuery<Purchase> = {
+      $or: [{ userId }]
+    }
+
+    if (email) {
+      where.$or!.push({ userEmail: email })
+    }
+
     const purchases = await this.purchaseRepository.find(
-      { userId, expiresAt: { $gt: new Date() } },
+      where,
       { populate: ['exam'] },
     )
     
@@ -118,10 +149,11 @@ export class PurchasesService {
       throw new NotFoundException('Purchase device record not found')
     }
 
-    const previousState = deviceRecord.lockReason
-    deviceRecord.isLocked = false
-    deviceRecord.lockReason = undefined
-    await this.purchaseDeviceRepository.getEntityManager().flush()
+    const previousState = deviceRecord.lockReason;
+    deviceRecord.isLocked = false;
+    deviceRecord.lockReason = undefined;
+    deviceRecord.lockedAt = undefined; // Clear lock timestamp
+    await this.purchaseDeviceRepository.getEntityManager().flush();
     
     // Create audit log for unlock action
     await this.createAuditLog(
@@ -139,59 +171,82 @@ export class PurchasesService {
     pageSize: number = 20,
     filters?: LockedAccountsFilters
   ): Promise<PaginatedResult<any>> {
-    const where: FilterQuery<PurchaseDevice> = { isLocked: true }
-    
-    // Apply filters
-    if (filters?.examId) {
-      where.purchase = { exam: { id: filters.examId } }
-    }
-    
-    if (filters?.dateFrom || filters?.dateTo) {
-      where.createdAt = {}
-      if (filters.dateFrom) {
-        where.createdAt.$gte = filters.dateFrom
+    try {
+      const where: FilterQuery<PurchaseDevice> = { isLocked: true }
+      
+      // Apply filters
+      if (filters?.examId) {
+        where.purchase = { exam: { id: filters.examId } }
       }
-      if (filters.dateTo) {
-        where.createdAt.$lte = filters.dateTo
+      
+      if (filters?.dateFrom || filters?.dateTo) {
+        where.createdAt = {}
+        if (filters.dateFrom) {
+          where.createdAt.$gte = filters.dateFrom
+        }
+        if (filters.dateTo) {
+          where.createdAt.$lte = filters.dateTo
+        }
       }
-    }
-    
-    if (filters?.search) {
-      if (where.purchase) {
-        (where.purchase as any).userId = { $like: `%${filters.search}%` }
-      } else {
-        where.purchase = { userId: { $like: `%${filters.search}%` } }
+      
+      if (filters?.search) {
+        if (where.purchase) {
+          (where.purchase as any).userId = { $like: `%${filters.search}%` }
+        } else {
+          where.purchase = { userId: { $like: `%${filters.search}%` } }
+        }
       }
-    }
 
-    const [lockedDevices, total] = await this.purchaseDeviceRepository.findAndCount(
-      where,
-      { 
-        populate: ['purchase', 'purchase.exam'],
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
-        orderBy: { createdAt: 'DESC' }
+      const [lockedDevices, total] = await this.purchaseDeviceRepository.findAndCount(
+        where,
+        { 
+          populate: ['purchase', 'purchase.exam'],
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          orderBy: { createdAt: 'DESC' }
+        }
+      )
+
+      // If no locked devices found, return empty result
+      if (!lockedDevices || lockedDevices.length === 0) {
+        return {
+          data: [],
+          total: 0,
+          page,
+          pageSize,
+          totalPages: 0
+        }
       }
-    )
 
-    const data = lockedDevices.map(device => ({
-      id: device.purchase.id,
-      userId: device.purchase.userId,
-      examId: device.purchase.exam.id,
-      examCode: device.purchase.exam.code,
-      examTitle: device.purchase.exam.title,
-      deviceFingerprint: device.deviceFingerprint,
-      lockReason: device.lockReason,
-      lockedAt: device.createdAt,
-      lastAccessedAt: device.lastAccessedAt,
-    }))
+      const data = lockedDevices.map(device => ({
+        id: device.purchase.id,
+        userId: device.purchase.userId,
+        examId: device.purchase.exam.id,
+        examCode: device.purchase.exam.code,
+        examTitle: device.purchase.exam.title,
+        deviceFingerprint: device.deviceFingerprint,
+        lockReason: device.lockReason,
+        lockedAt: device.lockedAt || device.createdAt, // Use lockedAt if available
+        lastAccessedAt: device.lastAccessedAt,
+      }));
 
-    return {
-      data,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize)
+      return {
+        data,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize)
+      }
+    } catch (error: any) {
+      console.error('Error in getLockedAccounts:', error);
+      // Return empty result on error to prevent 500
+      return {
+        data: [],
+        total: 0,
+        page,
+        pageSize,
+        totalPages: 0
+      }
     }
   }
 

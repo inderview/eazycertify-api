@@ -1,7 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { EmailService } from '../email/email.service';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { ReplyContactDto } from './dto/reply-contact.dto';
 import { ContactMessage } from './contact-message.entity';
 
 @Injectable()
@@ -50,6 +51,53 @@ export class ContactService {
     void this.sendNotifications({ id: contactMessage.id, dto });
 
     return { id: contactMessage.id };
+  }
+
+  async findAll(): Promise<ContactMessage[]> {
+    return this.em.find(ContactMessage, {}, { orderBy: { createdAt: 'DESC' } });
+  }
+
+  async findOne(id: string): Promise<ContactMessage> {
+    const message = await this.em.findOne(ContactMessage, { id });
+    if (!message) {
+      throw new NotFoundException(`Contact message with ID ${id} not found`);
+    }
+    return message;
+  }
+
+  async reply(id: string, dto: ReplyContactDto): Promise<ContactMessage> {
+    const message = await this.findOne(id);
+
+    // Save reply to database
+    message.reply = dto.message;
+    message.repliedAt = new Date();
+    message.status = 'resolved';
+    message.updatedAt = new Date();
+
+    // Send email reply (using the HTML content as-is since it comes from rich text editor)
+    try {
+      await this.email.sendEmail({
+        to: message.email,
+        subject: `Re: ${message.subject}`,
+        html: `
+          <p>Dear ${this.escape(message.name)},</p>
+          <div>${dto.message}</div>
+          <br>
+          <p>Best regards,</p>
+          <p>The EazyCertify Team</p>
+          <hr>
+          <p><strong>Original Message:</strong></p>
+          <p>${this.escape(message.message).replace(/\n/g, '<br>')}</p>
+        `,
+      });
+    } catch (error: any) {
+      this.logger.error(`Failed to send reply email: ${error.message}`);
+      throw new InternalServerErrorException('Failed to send reply email');
+    }
+
+    await this.em.flush();
+
+    return message;
   }
 
   private async sendNotifications(input: { id: string; dto: CreateContactDto }): Promise<void> {

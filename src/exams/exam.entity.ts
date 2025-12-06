@@ -46,6 +46,16 @@ export class Exam {
 	@Property({ nullable: true })
 	imageUrl?: string
 
+	@Property({ type: 'json', nullable: true })
+	configuration?: {
+		topicDistribution?: Record<string, number>
+		typeDistribution?: Record<string, number>
+		overlapPolicy?: {
+			minNewPercent?: number
+			maxRepeatFromLast?: number
+		}
+	}
+
 	@Property({ type: 'timestamptz', onCreate: () => new Date() })
 	createdAt: Date = new Date()
 

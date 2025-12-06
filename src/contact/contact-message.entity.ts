@@ -32,6 +32,12 @@ export class ContactMessage {
   @Property({ default: 'new' })
   status: ContactStatus = 'new'
 
+  @Property({ type: 'text', nullable: true })
+  reply?: string
+
+  @Property({ type: 'timestamptz', nullable: true })
+  repliedAt?: Date
+
   @Property({ type: 'jsonb', nullable: true })
   metadata?: any
 

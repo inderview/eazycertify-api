@@ -19,6 +19,9 @@ export class PurchaseDevice {
   lockReason?: string;
 
   @Property({ nullable: true })
+  lockedAt?: Date;
+
+  @Property({ nullable: true })
   lastAccessedAt?: Date;
 
   @Property()

@@ -4,11 +4,13 @@ import { ContactController } from './contact.controller';
 import { ContactService } from './contact.service';
 import { ContactMessage } from './contact-message.entity';
 import { EmailModule } from '../email/email.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
     MikroOrmModule.forFeature([ContactMessage]),
     EmailModule,
+    AdminModule,
   ],
   controllers: [ContactController],
   providers: [ContactService],

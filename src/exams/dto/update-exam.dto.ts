@@ -61,6 +61,16 @@ export class UpdateExamDto {
 	@IsOptional()
 	@IsString()
 	imageUrl?: string
+
+	@IsOptional()
+	configuration?: {
+		topicDistribution?: Record<string, number>
+		typeDistribution?: Record<string, number>
+		overlapPolicy?: {
+			minNewPercent?: number
+			maxRepeatFromLast?: number
+		}
+	}
 }
 
 

@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common'
 import { EntityManager } from '@mikro-orm/core'
 import Stripe from 'stripe'
 import { Purchase } from '../purchases/purchase.entity'
+import { PurchaseAuditLog } from '../purchases/purchase-audit-log.entity'
 import { Exam } from '../exams/exam.entity'
+
+type PurchaseRecordSource = 'webhook' | 'success-page'
 
 export interface CreateCheckoutSessionDto {
 	examId: number
@@ -47,6 +50,18 @@ export class StripeService {
 			'1year': '1 Year (Unlimited)',
 		}
 
+		const metadata: Record<string, string> = {
+			examId: dto.examId.toString(),
+			examCode: dto.examCode,
+			duration: dto.duration,
+			withAI: dto.withAI.toString(),
+			userId: dto.userId || 'guest',
+		}
+
+		if (dto.userEmail) {
+			metadata.userEmail = dto.userEmail
+		}
+
 		const session = await this.stripe.checkout.sessions.create({
 			payment_method_types: ['card'],
 			line_items: [
@@ -65,13 +80,7 @@ export class StripeService {
 			mode: 'payment',
 			success_url: `${process.env.FRONTEND_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
-			metadata: {
-				examId: dto.examId.toString(),
-				examCode: dto.examCode,
-				duration: dto.duration,
-				withAI: dto.withAI.toString(),
-				userId: dto.userId || 'guest',
-			},
+			metadata,
 			customer_email: dto.userEmail,
 		})
 
@@ -83,36 +92,30 @@ export class StripeService {
 
 	async getSessionDetails(sessionId: string) {
 		try {
-			const session = await this.stripe.checkout.sessions.retrieve(sessionId)
+			const session = await this.stripe.checkout.sessions.retrieve(sessionId, {
+				expand: ['line_items'],
+			})
 			
 			if (!session.metadata) {
 				throw new Error('Session metadata not found')
 			}
 
 			const metadata = session.metadata
+			const durationValue = metadata.duration || '1month'
 			const durationLabels: Record<string, string> = {
 				'1month': '1 Month',
 				'3months': '3 Months',
 				'1year': '1 Year'
 			}
+			const expiresAt = this.calculateExpiration(durationValue)
 
-			// Calculate expiration date
-			const now = new Date()
-			const expiresAt = new Date(now)
-			
-			if (metadata.duration === '1month') {
-				expiresAt.setMonth(expiresAt.getMonth() + 1)
-			} else if (metadata.duration === '3months') {
-				expiresAt.setMonth(expiresAt.getMonth() + 3)
-			} else if (metadata.duration === '1year') {
-				expiresAt.setFullYear(expiresAt.getFullYear() + 1)
-			}
+			await this.recordPurchaseFromSession(session, 'success-page')
 
 			return {
 				examCode: metadata.examCode,
 				examTitle: session.line_items?.data[0]?.description || 'Exam Access',
-				duration: metadata.duration,
-				durationLabel: durationLabels[metadata.duration] || metadata.duration,
+				duration: durationValue,
+				durationLabel: durationLabels[durationValue] || durationValue,
 				withAI: metadata.withAI === 'true',
 				amount: session.amount_total ? session.amount_total / 100 : 0,
 				currency: session.currency || 'usd',
@@ -142,42 +145,79 @@ export class StripeService {
 
 		if (event.type === 'checkout.session.completed') {
 			const session = event.data.object as Stripe.Checkout.Session
-			const metadata = session.metadata
-			
-			if (metadata && metadata.examId) {
-				try {
-					const purchase = new Purchase()
-					purchase.userId = metadata.userId || 'guest'
-					// We use getReference to avoid fetching the exam if we just need the ID for the FK
-					// But MikroORM might need the entity if we are persisting a new relation.
-					// Let's use em.getReference which creates a proxy.
-					purchase.exam = this.em.getReference(Exam, Number(metadata.examId))
-					purchase.stripeSessionId = session.id
-					purchase.amount = session.amount_total ? session.amount_total / 100 : 0
-					purchase.currency = session.currency || 'usd'
-					purchase.duration = metadata.duration
-					purchase.withAI = metadata.withAI === 'true'
-					
-					const now = new Date()
-					const expiresAt = new Date(now)
-					
-					if (metadata.duration === '1month') {
-						expiresAt.setMonth(expiresAt.getMonth() + 1)
-					} else if (metadata.duration === '3months') {
-						expiresAt.setMonth(expiresAt.getMonth() + 3)
-					} else if (metadata.duration === '1year') {
-						expiresAt.setFullYear(expiresAt.getFullYear() + 1)
-					}
-					purchase.expiresAt = expiresAt
-
-					await this.em.persistAndFlush(purchase)
-					console.log(`Purchase recorded for Exam ${metadata.examCode} by User ${purchase.userId}`)
-				} catch (error) {
-					console.error('Error saving purchase:', error)
-					// We don't throw here to avoid Stripe retrying if it's a logic error on our side,
-					// but in production you might want to handle this better (e.g. DLQ)
-				}
-			}
+			await this.recordPurchaseFromSession(session, 'webhook')
 		}
+	}
+
+	private calculateExpiration(duration?: string): Date {
+		const expiresAt = new Date()
+		if (duration === '3months') {
+			expiresAt.setMonth(expiresAt.getMonth() + 3)
+			return expiresAt
+		}
+		if (duration === '1year') {
+			expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+			return expiresAt
+		}
+		expiresAt.setMonth(expiresAt.getMonth() + 1)
+		return expiresAt
+	}
+
+	private async recordPurchaseFromSession(
+		session: Stripe.Checkout.Session,
+		source: PurchaseRecordSource,
+	): Promise<Purchase | null> {
+		const metadata = session.metadata
+		if (!metadata?.examId) {
+			console.warn('Stripe session missing exam metadata', { sessionId: session.id })
+			return null
+		}
+		if (session.payment_status !== 'paid') {
+			return null
+		}
+		const examId = Number(metadata.examId)
+		if (!Number.isInteger(examId)) {
+			console.warn('Invalid examId in stripe metadata', { examId: metadata.examId })
+			return null
+		}
+		const em = this.em.fork()
+		const existing = await em.findOne(Purchase, { stripeSessionId: session.id })
+		if (existing) {
+			const email = session.customer_details?.email || session.customer_email || metadata.userEmail
+			if (!existing.userEmail && email) {
+				existing.userEmail = email
+				await em.flush()
+			}
+			return existing
+		}
+		const withAI = metadata.withAI === 'true'
+		const durationValue = metadata.duration || '1month'
+		const userId = metadata.userId || 'guest'
+		const email = session.customer_details?.email || session.customer_email || metadata.userEmail || undefined
+		const purchase = new Purchase()
+		purchase.userId = userId
+		purchase.userEmail = email
+		purchase.exam = em.getReference(Exam, examId)
+		purchase.stripeSessionId = session.id
+		purchase.amount = session.amount_total ? session.amount_total / 100 : this.getPricing(durationValue, withAI)
+		purchase.currency = session.currency || 'usd'
+		purchase.duration = durationValue
+		purchase.withAI = withAI
+		purchase.expiresAt = this.calculateExpiration(durationValue)
+		await em.persist(purchase)
+		const auditLog = new PurchaseAuditLog()
+		auditLog.purchase = purchase
+		auditLog.action = 'purchase_created'
+		auditLog.reason = `Purchase recorded via ${source}`
+		auditLog.metadata = JSON.stringify({
+			source,
+			stripeSessionId: session.id,
+			paymentStatus: session.payment_status,
+			examId,
+		})
+		await em.persist(auditLog)
+		await em.flush()
+		console.log(`Purchase recorded for Exam ${metadata.examCode || examId} by User ${purchase.userId} via ${source}`)
+		return purchase
 	}
 }

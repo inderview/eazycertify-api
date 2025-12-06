@@ -12,6 +12,10 @@ import { QuestionsModule } from './questions/questions.module'
 import { StripeModule } from './stripe/stripe.module'
 import { PurchasesModule } from './purchases/purchases.module'
 import { ContactModule } from './contact/contact.module'
+import { UsersModule } from './users/users.module'
+import { AttemptsModule } from './attempts/attempts.module'
+
+import { TestimonialsModule } from './testimonials/testimonials.module'
 
 @Module({
 	imports: [
@@ -28,6 +32,9 @@ import { ContactModule } from './contact/contact.module'
 		StripeModule,
 		PurchasesModule,
 		ContactModule,
+		UsersModule,
+		AttemptsModule,
+        TestimonialsModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],

@@ -31,6 +31,9 @@ export class ExamsService {
 				questionsPerMockTest: dto.questionsPerMockTest,
 				price: dto.price,
 				purchasable: dto.purchasable ?? false,
+				sortOrder: dto.sortOrder,
+				imageUrl: dto.imageUrl,
+				configuration: dto.configuration,
 				createdAt: new Date(),
 			})
 			await this.em.persistAndFlush(exam)
@@ -55,6 +58,9 @@ export class ExamsService {
 		if (dto.questionsPerMockTest !== undefined) exam.questionsPerMockTest = dto.questionsPerMockTest
 		if (dto.price !== undefined) exam.price = dto.price
 		if (dto.purchasable !== undefined) exam.purchasable = dto.purchasable
+		if (dto.sortOrder !== undefined) exam.sortOrder = dto.sortOrder
+		if (dto.imageUrl !== undefined) exam.imageUrl = dto.imageUrl
+		if (dto.configuration !== undefined) exam.configuration = dto.configuration
 		await this.em.flush()
 		return exam
 	}

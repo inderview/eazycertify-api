@@ -1,6 +1,9 @@
-import { Body, Controller, Ip, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { ReplyContactDto } from './dto/reply-contact.dto';
 import { ContactService } from './contact.service';
+import { AdminGuard } from '../admin/admin.guard';
+import { ContactMessage } from './contact-message.entity';
 
 @Controller('contact')
 export class ContactController {
@@ -18,5 +21,23 @@ export class ContactController {
       userAgent: req?.headers?.['user-agent'],
       ip,
     });
+  }
+
+  @Get()
+  @UseGuards(AdminGuard)
+  async findAll(): Promise<ContactMessage[]> {
+    return this.contactService.findAll();
+  }
+
+  @Get(':id')
+  @UseGuards(AdminGuard)
+  async findOne(@Param('id') id: string): Promise<ContactMessage> {
+    return this.contactService.findOne(id);
+  }
+
+  @Post(':id/reply')
+  @UseGuards(AdminGuard)
+  async reply(@Param('id') id: string, @Body() dto: ReplyContactDto): Promise<ContactMessage> {
+    return this.contactService.reply(id, dto);
   }
 }
