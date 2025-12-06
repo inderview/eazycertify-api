@@ -39,8 +39,18 @@ export class PurchasesService {
     })
 
     if (!purchase) {
+      console.log(`CheckAccess failed: No active purchase found for userId=${userId}, examId=${examId}`)
+      // Debug: check if any purchase exists for this user/exam ignoring expiry
+      const anyPurchase = await this.purchaseRepository.findOne({ userId, exam: { id: examId } })
+      if (anyPurchase) {
+         console.log('Found expired purchase:', anyPurchase.expiresAt)
+      } else {
+         console.log('No purchase record found at all')
+      }
       return false
     }
+    
+    console.log(`CheckAccess success for userId=${userId}, examId=${examId}`)
 
     // If device fingerprint is provided, validate it
     if (deviceFingerprint) {

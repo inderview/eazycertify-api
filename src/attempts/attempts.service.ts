@@ -326,16 +326,20 @@ export class AttemptsService {
 				if (!question) {
 					return undefined
 				}
-				const questionOptions = (optionsMap.get(question.id) || []).sort((a, b) => {
+				const uniqueOptions = Array.from(new Map((optionsMap.get(question.id) || []).map(item => [item.id, item])).values())
+				const questionOptions = uniqueOptions.sort((a, b) => {
 					const orderA = a.optionOrder ?? a.id
 					const orderB = b.optionOrder ?? b.id
 					return orderA - orderB
 				})
-				const questionGroups = (groupsMap.get(question.id) || []).sort((a, b) => {
+
+				const uniqueGroups = Array.from(new Map((groupsMap.get(question.id) || []).map(item => [item.id, item])).values())
+				const questionGroups = uniqueGroups.sort((a, b) => {
 					const orderA = a.groupOrder ?? a.id
 					const orderB = b.groupOrder ?? b.id
 					return orderA - orderB
 				})
+
 				return {
 					id: question.id,
 					examId: question.examId,
