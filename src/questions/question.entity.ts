@@ -1,6 +1,6 @@
 import { Entity, PrimaryKey, Property } from '@mikro-orm/core'
 
-export type QuestionType = 'single' | 'multi' | 'ordering' | 'yesno' | 'hotspot' | 'dragdrop'
+export type QuestionType = 'single' | 'multi' | 'ordering' | 'yesno' | 'hotspot' | 'dragdrop' | 'program'
 export type QuestionDifficulty = 'easy' | 'medium' | 'hard'
 export type QuestionStatus = 'draft' | 'published'
 

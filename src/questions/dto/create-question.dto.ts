@@ -1,6 +1,6 @@
 import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min, MinLength, ValidateNested } from 'class-validator'
 import type { QuestionDifficulty, QuestionStatus, QuestionType } from '../question.entity'
-import type { GroupMode } from '../question-group.entity'
+import type { GroupMode, SlotType } from '../question-group.entity'
 import { Type } from 'class-transformer'
 
 class QuestionOptionDto {
@@ -27,6 +27,10 @@ class QuestionGroupDto {
 	@IsInt()
 	groupOrder?: number
 
+	@IsOptional()
+	@IsEnum(['text', 'select'] as unknown as SlotType[])
+	slotType?: SlotType
+
 	@IsArray()
 	@ValidateNested({ each: true })
 	@Type(() => QuestionOptionDto)
@@ -38,7 +42,7 @@ export class CreateQuestionDto {
 	@Min(1)
 	examId!: number
 
-	@IsEnum(['single', 'multi', 'ordering', 'yesno', 'hotspot', 'dragdrop'] as unknown as QuestionType[])
+	@IsEnum(['single', 'multi', 'ordering', 'yesno', 'hotspot', 'dragdrop', 'program'] as unknown as QuestionType[])
 	type!: QuestionType
 
 	@IsString()

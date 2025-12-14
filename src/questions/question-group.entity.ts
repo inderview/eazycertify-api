@@ -1,6 +1,7 @@
 import { Entity, PrimaryKey, Property } from '@mikro-orm/core'
 
 export type GroupMode = 'single' | 'multi'
+export type SlotType = 'text' | 'select'
 
 @Entity({ tableName: 'question_group' })
 export class QuestionGroup {
@@ -18,6 +19,9 @@ export class QuestionGroup {
 
 	@Property({ nullable: true })
 	groupOrder?: number
+
+	@Property({ nullable: true })
+	slotType?: SlotType
 }
 
 

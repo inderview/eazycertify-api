@@ -56,6 +56,7 @@ export class QuestionsService {
 					label: g.label,
 					mode: g.mode,
 					groupOrder: g.groupOrder ?? gidx + 1,
+					slotType: (g as any).slotType,
 				})
 				await this.em.persistAndFlush(group)
 				for (const [oidx, opt] of g.options.entries()) {
@@ -116,6 +117,7 @@ export class QuestionsService {
 					label: g.label,
 					mode: g.mode,
 					groupOrder: g.groupOrder ?? gidx + 1,
+					slotType: (g as any).slotType,
 				})
 				await this.em.persistAndFlush(group)
 				for (const [oidx, opt] of g.options.entries()) {
@@ -166,6 +168,7 @@ export class QuestionsService {
 			label: g.label,
 			mode: g.mode,
 			groupOrder: g.groupOrder,
+			slotType: (g as any).slotType,
 			options: options
 				.filter(o => o.groupId === g.id)
 				.map(o => ({
